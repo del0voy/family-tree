@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Древо Семьи</title>
+  <link rel="icon" href="C:\Proggraming\drevo\tree.png" type="image/png">
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      display: flex;
+      height: 100vh;
+      background-color: #f7f7f7;
+    }
+
+    /* Левая панель */
+    #leftPanel {
+      width: 300px;
+      background-color: #2C3E50;
+      padding: 20px;
+      box-sizing: border-box;
+      color: #fff;
+      overflow-y: auto;
+      box-shadow: 4px 0 6px rgba(0, 0, 0, 0.1);
+    }
+
+    #leftPanel h1 {
+      text-align: center;
+      font-size: 24px;
+      margin-bottom: 10px;
+      color: #3498DB;
+    }
+
+    #leftPanel h2 {
+      text-align: center;
+      font-size: 20px;
+      margin-bottom: 20px;
+      color: #ECF0F1;
+    }
+
+    #inputForm {
+      display: flex;
+      flex-direction: column;
+    }
+
+    input, button {
+      padding: 12px;
+      margin: 8px 0;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      transition: background-color 0.3s ease;
+    }
+
+    input {
+      background-color: #ECF0F1;
+    }
+
+    input:focus {
+      outline: none;
+      background-color: #D5DBDB;
+    }
+
+    button {
+      background-color: #3498DB;
+      color: white;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background-color: #2980B9;
+    }
+
+    button:active {
+      background-color: #1D6C9C;
+    }
+
+    /* Основная область */
+    #main {
+      flex-grow: 1;
+      background-color: #ECF0F1;
+      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      padding: 20px;
+      overflow: hidden;
+    }
+
+    .node {
+      position: absolute;
+      width: 150px;
+      height: 70px;
+      background-color: #fff;
+      border: 2px solid #34495E;
+      border-radius: 8px;
+      padding: 8px;
+      text-align: center;
+      font-weight: 600;
+      color: #34495E;
+      cursor: move;
+      box-shadow: 2px 2px 8px rgba(0, 0, 0, 0.2);
+    }
+
+    .connector {
+      width: 14px;
+      height: 14px;
+      background-color: #34495E;
+      position: absolute;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    .connector.top { top: -8px; left: 50%; transform: translateX(-50%); }
+    .connector.bottom { bottom: -8px; left: 50%; transform: translateX(-50%); }
+    .connector.left { left: -8px; top: 50%; transform: translateY(-50%); }
+    .connector.right { right: -8px; top: 50%; transform: translateY(-50%); }
+
+    #lines {
+      position: absolute;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    #contextMenu {
+      position: absolute;
+      background-color: #fff;
+      border: 1px solid #ccc;
+      padding: 10px;
+      border-radius: 6px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+      display: none;
+      z-index: 100;
+    }
+
+    #contextMenu button {
+      display: block;
+      width: 100%;
+      padding: 8px 12px;
+      margin: 5px 0;
+      background-color: #3498DB;
+      border: none;
+      border-radius: 4px;
+      color: white;
+      font-size: 14px;
+      cursor: pointer;
+      text-align: left;
+    }
+
+    #contextMenu button:hover {
+      background-color: #2980B9;
+    }
+
+    #contextMenu button.delete {
+      background-color: #E74C3C;
+    }
+
+    #contextMenu button.delete:hover {
+      background-color: #C0392B;
+    }
+
+    /* Адаптивность */
+    @media (max-width: 768px) {
+      #leftPanel {
+        width: 250px;
+      }
+
+      .node {
+        width: 120px;
+        height: 60px;
+        font-size: 14px;
+      }
+
+      #inputForm {
+        margin-top: 20px;
+      }
+    }
+
+    @media (max-width: 480px) {
+      body {
+        flex-direction: column;
+      }
+
+      #leftPanel {
+        width: 100%;
+        height: auto;
+        box-shadow: none;
+      }
+
+      #main {
+        margin-top: 20px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div id="leftPanel">
+    <h1>Древо Семьи</h1>
+    <h2>Создать кубик</h2>
+    <div id="inputForm">
+      <input type="text" id="nameInput" placeholder="Введите имя">
+      <input type="text" id="relationInput" placeholder="Введите родство">
+      <button id="createCubeBtn">Создать кубик</button>
+    </div>
+  </div>
+
+  <div id="main">
+    <svg id="lines"></svg>
+    <div id="contextMenu">
+      <button onclick="deleteConnections()">Удалить все линии</button>
+      <button class="delete" onclick="deleteNode()">Удалить кубик</button>
+    </div>
+  </div>
+
+  <script>
+    const family = [];
+    const connections = [];
+    const container = document.getElementById("main");
+    const svg = document.getElementById("lines");
+    const nodes = {};
+    let startConnector = null;
+    let contextTarget = null;
+    let nextId = 1;
+
+    document.getElementById("createCubeBtn").onclick = () => {
+      const name = document.getElementById("nameInput").value.trim();
+      const relation = document.getElementById("relationInput").value.trim();
+      if (!name || !relation) {
+        alert("Пожалуйста, заполните все поля");
+        return;
+      }
+
+      const id = `person-${nextId++}`;
+      const person = { 
+        id, 
+        name, 
+        relation, 
+        x: 100 + family.length * 20, 
+        y: 100 + family.length * 20 
+      };
+      family.push(person);
+      createNode(person);
+      drawLines();
+
+      document.getElementById("nameInput").value = '';
+      document.getElementById("relationInput").value = '';
+    };
+
+    function createNode(person) {
+      const div = document.createElement("div");
+      div.className = "node";
+      div.style.left = person.x + "px";
+      div.style.top = person.y + "px";
+      div.dataset.id = person.id;
+      div.innerHTML = `<strong>${person.name}</strong><br><small>${person.relation}</small>`;
+
+      const topConnector = document.createElement("div");
+      topConnector.className = "connector top";
+      const bottomConnector = document.createElement("div");
+      bottomConnector.className = "connector bottom";
+      const leftConnector = document.createElement("div");
+      leftConnector.className = "connector left";
+      const rightConnector = document.createElement("div");
+      rightConnector.className = "connector right";
+
+      div.appendChild(topConnector);
+      div.appendChild(bottomConnector);
+      div.appendChild(leftConnector);
+      div.appendChild(rightConnector);
+      container.appendChild(div);
+      nodes[person.id] = div;
+
+      div.ondblclick = () => {
+        const newName = prompt("Новое имя:", person.name);
+        const newRelation = prompt("Новое родство:", person.relation);
+        if (newName) person.name = newName;
+        if (newRelation) person.relation = newRelation;
+        div.innerHTML = `<strong>${person.name}</strong><br><small>${person.relation}</small>`;
+        div.appendChild(topConnector);
+        div.appendChild(bottomConnector);
+        div.appendChild(leftConnector);
+        div.appendChild(rightConnector);
+        drawLines();
+      };
+
+      let offsetX, offsetY;
+      div.onmousedown = e => {
+        if (e.button !== 0 || e.target.classList.contains("connector")) return;
+        offsetX = e.offsetX;
+        offsetY = e.offsetY;
+        hideContextMenu();
+        function move(e) {
+          person.x = e.pageX - container.offsetLeft - offsetX;
+          person.y = e.pageY - container.offsetTop - offsetY;
+          div.style.left = person.x + "px";
+          div.style.top = person.y + "px";
+          drawLines();
+        }
+        function stop() {
+          document.removeEventListener("mousemove", move);
+          document.removeEventListener("mouseup", stop);
+        }
+        document.addEventListener("mousemove", move);
+        document.addEventListener("mouseup", stop);
+      };
+
+      [topConnector, bottomConnector, leftConnector, rightConnector].forEach(connector => {
+        connector.onclick = () => {
+          if (!startConnector) {
+            startConnector = { person, connector };
+          } else {
+            if (startConnector.person !== person) {
+              connections.push({ 
+                from: startConnector.person.id, 
+                to: person.id, 
+                connectorFrom: startConnector.connector, 
+                connectorTo: connector 
+              });
+              drawLines();
+            }
+            startConnector = null;
+          }
+        };
+      });
+
+      div.oncontextmenu = e => {
+        e.preventDefault();
+        contextTarget = person;
+        const menu = document.getElementById("contextMenu");
+        
+        // Позиционируем меню рядом с кубиком
+        const rect = div.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+        
+        // Вычисляем позицию относительно контейнера
+        const left = rect.left - containerRect.left + rect.width + 5;
+        const top = rect.top - containerRect.top;
+        
+        menu.style.left = left + "px";
+        menu.style.top = top + "px";
+        menu.style.display = "block";
+      };
+    }
+
+    function drawLines() {
+      svg.innerHTML = "";
+      connections.forEach(link => {
+        const fromEl = nodes[link.from];
+        const toEl = nodes[link.to];
+        if (!fromEl || !toEl) return;
+
+        const fromConnector = getConnectorPosition(fromEl, link.connectorFrom);
+        const toConnector = getConnectorPosition(toEl, link.connectorTo);
+
+        const fromRect = fromEl.getBoundingClientRect();
+        const toRect = toEl.getBoundingClientRect();
+        const containerRect = container.getBoundingClientRect();
+
+        const x1 = fromConnector.x - containerRect.left;
+        const y1 = fromConnector.y - containerRect.top;
+        const x2 = toConnector.x - containerRect.left;
+        const y2 = toConnector.y - containerRect.top;
+
+        const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+        line.setAttribute("x1", x1);
+        line.setAttribute("y1", y1);
+        line.setAttribute("x2", x2);
+        line.setAttribute("y2", y2);
+        line.setAttribute("stroke", "#3498DB");
+        line.setAttribute("stroke-width", "2");
+        svg.appendChild(line);
+      });
+    }
+
+    function getConnectorPosition(element, connector) {
+      const rect = element.getBoundingClientRect();
+      const connectors = {
+        top: { x: rect.left + rect.width / 2, y: rect.top },
+        bottom: { x: rect.left + rect.width / 2, y: rect.top + rect.height },
+        left: { x: rect.left, y: rect.top + rect.height / 2 },
+        right: { x: rect.left + rect.width, y: rect.top + rect.height / 2 }
+      };
+
+      return connectors[connector.className.split(' ')[1]];
+    }
+
+    function deleteNode() {
+      if (!contextTarget) return;
+      if (!confirm(`Вы уверены, что хотите удалить кубик "${contextTarget.name}"?`)) return;
+      
+      const id = contextTarget.id;
+      const div = nodes[id];
+      container.removeChild(div);
+      delete nodes[id];
+      const index = family.findIndex(p => p.id === id);
+      if (index !== -1) family.splice(index, 1);
+      for (let i = connections.length - 1; i >= 0; i--) {
+        if (connections[i].from === id || connections[i].to === id) {
+          connections.splice(i, 1);
+        }
+      }
+      contextTarget = null;
+      hideContextMenu();
+      drawLines();
+    }
+
+    function deleteConnections() {
+      if (!contextTarget) return;
+      if (!confirm(`Удалить все линии от/к "${contextTarget.name}"?`)) return;
+      
+      const id = contextTarget.id;
+      for (let i = connections.length - 1; i >= 0; i--) {
+        if (connections[i].from === id || connections[i].to === id) {
+          connections.splice(i, 1);
+        }
+      }
+      hideContextMenu();
+      drawLines();
+    }
+
+    function hideContextMenu() {
+      document.getElementById("contextMenu").style.display = "none";
+      contextTarget = null;
+    }
+
+    window.addEventListener("click", e => {
+      if (!e.target.closest("#contextMenu")) hideContextMenu();
+    });
+
+    window.addEventListener("resize", drawLines);
+  </script>
+</body>
+</html>
